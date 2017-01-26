@@ -1,23 +1,25 @@
 from flask import Flask, jsonify
-from flask import render_template, url_for
+from flask import *
 
 app = Flask(__name__)
-if __name__ == '__main__':
-    app.run()
 
 
 @app.route('/get', methods=['GET'])
 def get():
-    with open("file.json", r) as f:
-        return jsonify(f.read())
+    with open("file.json", "r") as f:
+        return f.read()
 
 @app.route('/post', methods=['POST'])
 def create_task():
     if not request.json:
         abort(400)
-    with open("file.json", r) as f:
-        f.write(str(request.json))
-    return str(request.json), 201
+    with open("file.json", "w") as f:
+        f.write(json.dumps(request.json))
+    return json.dumps(request.json), 201
 
-url_for('static', filename='jquery-3.1.1.js')
-url_for('static', filename='wiki.html')
+@app.route('/')
+def show():
+    return render_template('wiki.html')
+
+if __name__ == '__main__':
+    app.run()

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <script src="jquery-3.1.1.js"></script>
+    <script src="static/jquery-3.1.1.js"></script>
     <style>
         body{
             margin: 0px;
@@ -11,11 +11,12 @@
             font-family: Consolas, Courier, monospace;
             white-space: pre-wrap;
             box-sizing: border-box;
-            height: calc(100vh - 30px);
+            height: calc(100vh - 75px);
             width: 100vw;
             padding: 20px;
             overflow: scroll;
             float: left;
+            outline: none;
         }
         a {
             text-decoration: underline;
@@ -26,13 +27,35 @@
             box-sizing: border-box;
             height: 30px;
             background-color: #ccc;
-            padding: 5px;
+            padding: 3px;
+        }
+        .menu {
+            box-sizing: border-box;
+            height: 40px;
+            background-color: #eee;
+            border-bottom: 5px #ccc solid;
+        }
+        .menu button, .menu input {
+            font-family: Consolas, Courier, monospace;
+            background-color: #eee;
+            border: 0px;
+            padding: 0px 10px;
+            margin: 0px;
+            height: 100%;
+        }
+        .menu input {
+            background-color: #fff;
+            border: 0px;
+            padding: 0px;
+            height: 33px;
+            outline: none;
         }
     </style>
 </head>
 <body>
-    <div class="header">Main</div>
-    <div class="content" contenteditable="true">text goes here.</div>
+    <div class="menu"><input type="text" value="" id="searchbox"><button id="search" type="submit">🔍</button><button id="save">💾</button></div>
+    <div class="header"></div>
+    <div class="content" contenteditable="true"></div>
     <script>
         function SetCaretPosition(el, pos){
 
@@ -85,23 +108,63 @@
             return caretOffset;
         }
 
-        var origHtml = "";
-
         $(document).on("click", "a", function(e){
-            console.log("triggered");
+            getNote($(this).html());
         });
+
+        function getNote(name){
+            $.getJSON("/get", function(data){
+                $(".header").html(name);
+                $(".content").html(data[name]);
+                if(data[name] == null){
+                    $(".content").html("");
+                }
+                return data[name];
+            }).fail(function(){
+                $(".header").html(name);
+                $(".content").html("");
+                console.log("cant find "+name+": making one instead");
+            });
+        };
+
+        function setNote(name, note){
+            $.getJSON("/get", function(data){
+                data[name] = note;
+                $.ajax({
+                    type: "POST",
+                    url: "/post",
+                    data: JSON.stringify(data),
+                    success: function(ret){
+                        console.log("save success");
+                    },
+                    contentType: "application/json",
+                    dataType: "json"
+                });
+            });
+        };
+
+        getNote("main");
+
+        $(document).on("click", "#search", function(e){
+            searchkey = $("#searchbox").val();
+            console.log("searching "+ searchkey);
+            getNote(searchkey);
+        });
+
+        $(document).on("click", "#save", function(e){
+            setNote($(".header").html(), $(".content").html());
+        });
+
+        var origHtml = "";
 
         $(".content").on("input", function(e){
             var prevHtml = $(".content").html();
             var position = getCaretCharacterOffsetWithin(this);
-            console.log(prevHtml);
             var newHtml = prevHtml
                 .replace(/<div>/g, "\n").replace(/<\/?(?:b|a [\w=\"]+|i|div)>/g, '')
-                .replace(/\*([^\*]+)\*/g, '<b>\*$1\*</b>')
-                .replace(/_([^\*]+)_/g, '_<a contenteditable=false>$1</a>_');
+                .replace(/\[([^\]]+)\]/g, '<b>[$1]</b>')
+                .replace(/\{([^\}]+)\}/g, '{<a contenteditable=false>$1</a>}');
             $(".content").html(newHtml);
-            console.log(newHtml);
-            console.log(prevHtml.substr(position, 4));
             SetCaretPosition(this, position);
         }).on("keypress", function(e){
             if (e.which == 13) {
